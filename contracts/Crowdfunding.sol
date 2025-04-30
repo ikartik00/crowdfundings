@@ -6,6 +6,7 @@ contract SimpleCrowdfunding {
     uint public fundingGoal;
     uint public deadline;
     uint public totalRaised;
+    bool public withdrawn;
 
     mapping(address => uint) public contributions;
 
@@ -13,6 +14,7 @@ contract SimpleCrowdfunding {
         owner = msg.sender;
         fundingGoal = _goalInWei;
         deadline = block.timestamp + _durationInSeconds;
+        withdrawn = false;
     }
 
     // Contribute to the crowdfunding campaign
@@ -29,8 +31,32 @@ contract SimpleCrowdfunding {
         require(msg.sender == owner, "Only owner can withdraw");
         require(block.timestamp >= deadline, "Deadline not reached");
         require(totalRaised >= fundingGoal, "Goal not reached");
+        require(!withdrawn, "Funds already withdrawn");
 
+        withdrawn = true;
         payable(owner).transfer(address(this).balance);
+    }
+
+    // Refund contributors if goal not met
+    function refund() external {
+        require(block.timestamp >= deadline, "Deadline not reached");
+        require(totalRaised < fundingGoal, "Goal was met");
+        uint amount = contributions[msg.sender];
+        require(amount > 0, "No contributions to refund");
+
+        contributions[msg.sender] = 0;
+        payable(msg.sender).transfer(amount);
+    }
+
+    // Get campaign info
+    function getCampaignInfo() external view returns (
+        address _owner,
+        uint _goal,
+        uint _deadline,
+        uint _raised,
+        bool _withdrawn
+    ) {
+        return (owner, fundingGoal, deadline, totalRaised, withdrawn);
     }
 }
 
